@@ -1,4 +1,4 @@
-setwd("C:\\xtang\\workspace\\R\\stockAnalysis")
+setwd("C:\\xtang\\workspace\\mystockAnalysis")
 library(quantmod)
 library(TTR)
 library(plyr)
@@ -102,7 +102,8 @@ writeToUniqueCapital <- function(dailyCapital) {
   
   for(i in 1:nrow(dailyCapital)) {
   #for(i in 1:1) {
-    fileName <- paste("C:\\xtang\\workspace\\R\\stockAnalysis\\capital\\unique\\",dailyCapital[i,2],".xlsx",sep="")    
+    path <- getWd()
+    fileName <- paste(path,"\\capital\\unique\\",dailyCapital[i,2],".xlsx",sep="")    
     result = tryCatch({
       uniqueFile <- read.xlsx2(fileName,sheetIndex=1,header=TRUE, encoding="UTF-8",colClasses=uniqueCapColClasses, stringsAsFactors=FALSE,colIndex=(1:24))
 #       print(paste("-------------get file------------",fileName))
@@ -166,7 +167,8 @@ writeToUniqueDailyTrade <- function(dailyTrade) {
   
   for(i in 1:nrow(dailyTrade)) {
   #for(i in 1:1) {
-    fileName <- paste("C:\\xtang\\workspace\\R\\stockAnalysis\\market\\unique\\",dailyTrade[i,2],".xlsx",sep="")    
+    path <- getWd()
+    fileName <- paste(path,"\\market\\unique\\",dailyTrade[i,2],".xlsx",sep="")    
     result = tryCatch({
       uniqueFile <- read.xlsx2(fileName, sheetIndex=1,header=TRUE,encoding="UTF-8",colClasses=uniqueMarketColClasses, stringsAsFactors=FALSE,colIndex=c(1:25))
 #       print(paste("-------------get file------------",fileName))
@@ -219,7 +221,8 @@ openDailyTradeFile <- function(stock_id) {
 
 #根据stock id打开某个个股的所有资金流向数据
 openDailyCapFile <- function(stock_id) {
-  fileName <- paste("C:\\xtang\\workspace\\R\\stockAnalysis\\capital\\unique\\",stock_id,".xlsx",sep="")  
+  path <- getWd()
+  fileName <- paste(path,"\\capital\\unique\\",stock_id,".xlsx",sep="")  
   #stockDailyCapFile <- read.xlsx2(fileName, sheetIndex=1,header=TRUE,encoding="UTF-8",colClasses=c("Date","character","character",rep("numeric", 20),rep("integer",3)), keepFormulas=FALSE, stringsAsFactors=FALSE)  
   stockDailyCapFile <- read.xlsx2(fileName,sheetIndex=1,header=TRUE, encoding="UTF-8",colClasses=uniqueCapColClasses, stringsAsFactors=FALSE,colIndex=(1:24))
   return(stockDailyCapFile)  
@@ -247,7 +250,8 @@ combineCapAndMarketData <- function(dailyCapFile,dailyMarketFile) {
     netBuyingRate <- calNetBuying(uniqDailyTradeFile,uniqDailyCapFile,date)
     #print(paste("netBuyingRate",netBuyingRate))
     
-    fileName <- paste("C:\\xtang\\workspace\\R\\stockAnalysis\\capital\\unique\\",stockId,".xlsx",sep="")
+    path <- getWd()
+    fileName <- paste(path,"\\capital\\unique\\",stockId,".xlsx",sep="")
     row <- which(uniqDailyCapFile$日期 == date)
     #print(paste("row:",as.integer(row)))
     col <- which(names(uniqDailyCapFile) == "净买率")

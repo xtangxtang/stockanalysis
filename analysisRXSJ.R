@@ -1,4 +1,4 @@
-setwd("C:\\xtang\\workspace\\R\\stockAnalysis")
+setwd("C:\\xtang\\workspace\\mystockAnalysis")
 library(sqldf)
 library(RCurl)
 library(quantmod)
