@@ -419,11 +419,9 @@ shiftDateToRightIfNA <- function(df,date) {
   return(inds)
 }
 
-combineKLine <- function() {
-  
-}
 
-combineParting <- function(partingDataDF=data.frame(),origDataDF=data.frame(),startDate=NULL,endDate=NULL) {
+#根据分型数据处理包含关系
+processInclusion <- function(partingDataDF=data.frame(),origDataDF=data.frame(),startDate=NULL,endDate=NULL) {
   if(is.null(startDate)) {
     startDate <- origDataDF[1,1]
   } 
@@ -550,6 +548,7 @@ combineParting <- function(partingDataDF=data.frame(),origDataDF=data.frame(),st
   return(origDataDF)
 }
 
+#清除连续相同的分型，比如顶分型-顶分型，底分型-底分型
 elimSameParting <- function(partingDF) {
   firstIndex <- 1
   first <- partingDF[firstIndex,]
@@ -603,25 +602,74 @@ elimSameParting <- function(partingDF) {
   return(partingDF)
 }
 
-#获得不是笔的分型
-caculatePartingLinePot <- function() {
+#消除不是笔的分型,
+#partingDF:通过elimSameParting消除了连续相同分型的分型数据
+#combinedData:通过processInclusion处理了包含关系的原始数据
+caculatePartingLinePot <- function(partingDF,combinedData) {
+  firstIndex <- 1
+  first <- partingDF[firstIndex,]
+  secondIndex <- 2
+  second <- partingDF[secondIndex,]
+  print(partingDF[nrow(partingDF),1])
+  flog.debug(paste("caculatePartingLinePot:check",first$日期,"and",second$日期,"with end date",partingDF[nrow(partingDF),1]))
   
+#   emptyDF <- data.frame(
+#     日期 = as.Date(character("0")),
+#     开盘 = numeric(0),
+#     最高 = numeric(0),
+#     最低 = numeric(0),
+#     收盘 = numeric(0),
+#     顶分型 = logical(),
+#     成交量 = numeric(0),
+#     成交额 = numeric(0))
+#   
+  linePartingDF <- emptyDF
+  linePartingDF <- rbind(linePartingDF,first)      
+  
+  while(!is.na(second$日期) && second$日期 <= partingDF[nrow(partingDF),1]) {
+    flog.debug(paste("caculatePartingLinePot:check",first$日期,"and",second$日期))
+    
+    firstPlotInOrigData <- which(combinedData$日期 == first$日期)
+    if(length(firstPlotInOrigData) == 0) {
+      flog.error(paste("can not find first date",first$日期))
+      return(NULL)
+    }
+    secondPlotInOrigData <- which(combinedData$日期 == second$日期)
+    if(length(secondPlotInOrigData) == 0) {
+      flog.error(paste("can not find second date",second$日期))
+      return(NULL)
+    }
+    
+    flog.debug(paste("firstPlotInOrigData",firstPlotInOrigData,"secondPlotInOrigData",secondPlotInOrigData))
+    
+    if(abs(firstPlotInOrigData - secondPlotInOrigData) > 3) {
+            
+    }
+    
+    firstIndex <- secondIndex
+    first <- partingDF[firstIndex,]
+    secondIndex <- secondIndex + 1
+    second <- partingDF[secondIndex,]
+  }
+  
+  return(linePartingDF)
 }
 
 caculateLine <- function(id,startDate,endDate) {  
   path <- getwd()
   fileName <- paste(path,"//rxsj//",id,".txt",sep="")
   flog.debug(paste("get file path",fileName))
-  file <- readRXSJFile(fileName)
+  data <- readRXSJFile(fileName)
   
-  firstPDf <- findParting(file,startDate,endDate)
-  combinedDF <- combineParting(firstPDf,file,startDate,endDate)
-  
-  secondPDF <- findParting(combinedDF,startDate,endDate)
+  firstPDf <- findParting(data,startDate,endDate)
+  combinedFile <- processInclusion(firstPDf,data,startDate,endDate)  
+  secondPDF <- findParting(combinedFile,startDate,endDate)
   
   parting <- elimSameParting(secondPDF)
+  
+  lineParting <- caculatePartingLinePot(parting,combinedFile)
 
-  return(parting)
+  return(lineParting)
 }
 
 
