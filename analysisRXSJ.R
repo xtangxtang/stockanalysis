@@ -122,10 +122,19 @@ calculateTopParting <- function(origData,startDate,endDate) {
   if(length(inds) == 0) {
     #partingDataDF <- c(partingDataDF, highDate)
     #assign("partingDataDF", rbind(partingDataDF,highestData), envir = .GlobalEnv)
+    
+#     highDateInds <- which(subData$日期 == highDate)
+#     leftHightDateInds <- highDateInds - 1
+#     rightHightDateInds <- highDateInds + 1
+#     
+# #     if (subData[leftHightDateInds,]$最低 < highestData$最低 
+# #         && subData[rightHightDateInds,]$最低 < highestData$最低) {
+# #      
+# #     }
     partingDataDF <- rbind(partingDataDF,highestData)
     partingDataDF <- partingDataDF[order(as.Date(partingDataDF$日期,format="%d/%m/%Y")),]
     flog.debug(paste("partingDataDF$日期",partingDataDF[1,1]))
-    flog.info(paste("insert highest date",highDate))
+    flog.info(paste("insert highest date",highDate)) 
   } else {
     flog.error(paste("find the same high date",highDate,"between",sDate,"and",eDate))
     return(NULL)
@@ -234,10 +243,20 @@ calculateBottomParting <- function(origData,startDate,endDate) {
   if(length(inds) == 0) {
     #partingDataDF <- c(partingDataDF, lowDate)
     #assign("partingDataDF", rbind(partingDataDF,lowestData), envir = .GlobalEnv)
+    
+#     lowDateInds <- which(subData$日期 == lowDate)
+#     leftLowDateInds <- lowDateInds - 1
+#     rightLowDateInds <- lowDateInds + 1
+#     
+# #     if (subData[leftLowDateInds,]$最高 > lowestData$最高 
+# #         && subData[rightLowDateInds,]$最高 > lowestData$最高) {
+# #       
+# #     }
     partingDataDF <- rbind(partingDataDF,lowestData)
     partingDataDF <- partingDataDF[order(as.Date(partingDataDF$日期,format="%d/%m/%Y")),]
     flog.debug(paste("partingDataDF$日期",partingDataDF$日期))
-    flog.info(paste("insert lowest date",lowDate))
+    flog.info(paste("insert lowest date",lowDate))    
+
   } else {
     flog.error(paste("find the same low date",lowDate,"between",sDate,"and",eDate))
     return(NULL)
@@ -464,9 +483,9 @@ processInclusion <- function(partingDataDF=data.frame(),origDataDF=data.frame(),
     date <- partingDataDF[i,1]
     highestPrice <- partingDataDF[i,3]
     lowestPrice <- partingDataDF[i,4]
-    isTopParting <- partingDataDF[i,5]
+    isTopParting <- partingDataDF[i,6]
     
-    flog.debug(paste("check",date,"by",highestPrice,"and",lowestPrice))
+    flog.debug(paste("check",date,"by",highestPrice,"and",lowestPrice,"with isTopParting",isTopParting))
     
     inds <- which(origDataDF$日期 == date)
     if (length(inds) == 0) {
@@ -480,9 +499,14 @@ processInclusion <- function(partingDataDF=data.frame(),origDataDF=data.frame(),
     }
     
     flog.debug(paste("inds",inds,"startInds",startInds,"endInds",endInds))
-    subData <- subset(origDataDF, origDataDF$最低 >= lowestPrice & origDataDF$最高 <= highestPrice)
-#     subDataPlots <- which(origDataDF$日期 == subData$日期)
-#     flog.debug(paste("subDataPlots:",subDataPlots))
+    #subData <- subset(origDataDF, origDataDF$最低 >= lowestPrice & origDataDF$最高 <= highestPrice)
+    subData <- subset(origDataDF, (origDataDF$最低 >= lowestPrice & origDataDF$最高 <= highestPrice) | 
+                        (origDataDF$收盘 >= 2293 & origDataDF$开盘 <= 2347) | (origDataDF$开盘 >= 2293 & origDataDF$收盘 <= 2347))
+
+    #     subDataPlots <- which(origDataDF$日期 == subData$日期)
+    #     flog.debug(paste("subDataPlots:",subDataPlots))
+    
+    #print(subData)
 
     if (nrow(subData) > 1) {
       j <- 1
@@ -497,11 +521,12 @@ processInclusion <- function(partingDataDF=data.frame(),origDataDF=data.frame(),
         subDataPlots <- c(subDataPlots,sbdp)
         j<-j+1
       }
-      flog.debug(paste("subDataPlots:",subDataPlots))
+      #flog.debug(paste("subDataPlots:",subDataPlots))
+      #print(subDataPlots)
       
       if(length(subDataPlots) > 1) {
         partingPlot <- which(subData$日期 == date)
-        flog.debug(paste("partingPlot",partingPlot))
+        flog.debug(paste("partingPlot",partingPlot,"for date",date))
         
         testPlot <- inds - 1
         while(testPlot %in% subDataPlots) {
@@ -605,55 +630,135 @@ elimSameParting <- function(partingDF) {
 #消除不是笔的分型,
 #partingDF:通过elimSameParting消除了连续相同分型的分型数据
 #combinedData:通过processInclusion处理了包含关系的原始数据
+
 caculatePartingLinePot <- function(partingDF,combinedData) {
-  firstIndex <- 1
-  first <- partingDF[firstIndex,]
-  secondIndex <- 2
-  second <- partingDF[secondIndex,]
-  print(partingDF[nrow(partingDF),1])
-  flog.debug(paste("caculatePartingLinePot:check",first$日期,"and",second$日期,"with end date",partingDF[nrow(partingDF),1]))
+  lastLinePartingIndex <- 1
+  lastLineParting <- partingDF[lastLinePartingIndex,]
+  nextIndex <- 2
+  nextParting <- partingDF[nextIndex,]
+  #print(partingDF[nrow(partingDF),1])
+  flog.debug(paste("caculatePartingLinePot:check",lastLineParting$日期,"and",nextParting$日期,"with end date",partingDF[nrow(partingDF),1]))
   
-#   emptyDF <- data.frame(
-#     日期 = as.Date(character("0")),
-#     开盘 = numeric(0),
-#     最高 = numeric(0),
-#     最低 = numeric(0),
-#     收盘 = numeric(0),
-#     顶分型 = logical(),
-#     成交量 = numeric(0),
-#     成交额 = numeric(0))
-#   
+  emptyDF <- data.frame(
+    日期 = as.Date(character("0")),
+    开盘 = numeric(0),
+    最高 = numeric(0),
+    最低 = numeric(0),
+    收盘 = numeric(0),
+    顶分型 = logical(),
+    成交量 = numeric(0),
+    成交额 = numeric(0))
+  
   linePartingDF <- emptyDF
-  linePartingDF <- rbind(linePartingDF,first)      
   
-  while(!is.na(second$日期) && second$日期 <= partingDF[nrow(partingDF),1]) {
-    flog.debug(paste("caculatePartingLinePot:check",first$日期,"and",second$日期))
+  linePartingDF <- rbind(linePartingDF,lastLineParting)
+  
+  
+  while(!is.na(nextParting$日期) && nextParting$日期 <= partingDF[nrow(partingDF),1]) {
+    flog.debug(paste("caculatePartingLinePot:check",lastLineParting$日期,"and",nextParting$日期))
     
-    firstPlotInOrigData <- which(combinedData$日期 == first$日期)
-    if(length(firstPlotInOrigData) == 0) {
-      flog.error(paste("can not find first date",first$日期))
+    lastLinePartingPlotInOrigData <- which(combinedData$日期 == lastLineParting$日期)
+    if(length(lastLinePartingPlotInOrigData) == 0) {
+      flog.error(paste("can not find lastLineParting date",lastLineParting$日期))
       return(NULL)
     }
-    secondPlotInOrigData <- which(combinedData$日期 == second$日期)
-    if(length(secondPlotInOrigData) == 0) {
-      flog.error(paste("can not find second date",second$日期))
+    nextPlotInOrigData <- which(combinedData$日期 == nextParting$日期)
+    if(length(nextPlotInOrigData) == 0) {
+      flog.error(paste("can not find nextParting date",nextParting$日期))
       return(NULL)
     }
     
-    flog.debug(paste("firstPlotInOrigData",firstPlotInOrigData,"secondPlotInOrigData",secondPlotInOrigData))
+    flog.debug(paste("lastLinePartingPlotInOrigData",lastLinePartingPlotInOrigData,"nextPlotInOrigData",nextPlotInOrigData))
     
-    if(abs(firstPlotInOrigData - secondPlotInOrigData) > 3) {
-            
+    if(abs(lastLinePartingPlotInOrigData - nextPlotInOrigData) > 3 && lastLineParting$顶分型!=nextParting$顶分型) {
+      if (lastLineParting$顶分型 && lastLineParting$最高 > nextParting$最高) {
+        linePartingDF <- rbind(linePartingDF,nextParting)
+        lastLinePartingIndex <- nextIndex
+        lastLineParting <- partingDF[lastLinePartingIndex,]
+      } else if (!lastLineParting$顶分型 && lastLineParting$最高 < nextParting$最高) {
+        linePartingDF <- rbind(linePartingDF,nextParting)
+        lastLinePartingIndex <- nextIndex
+        lastLineParting <- partingDF[lastLinePartingIndex,]
+      }
+      
+      nextIndex <- nextIndex+1
+      nextParting <- partingDF[nextIndex,]      
+    } else if (abs(lastLinePartingPlotInOrigData - nextPlotInOrigData) >3 && lastLineParting$顶分型==nextParting$顶分型) {
+      if (lastLineParting$顶分型 && lastLineParting$最高 < nextParting$最高) {
+        linePartingDF <- rbind(linePartingDF,nextParting)
+        lastLinePartingIndex <- nextIndex
+        lastLineParting <- partingDF[lastLinePartingIndex,]
+      } else if (!lastLineParting$顶分型 && lastLineParting$最低>nextParting$最低) {
+        linePartingDF <- rbind(linePartingDF,nextParting)
+        lastLinePartingIndex <- nextIndex
+        lastLineParting <- partingDF[lastLinePartingIndex,]
+      }      
+      
+      nextIndex <- nextIndex+1
+      nextParting <- partingDF[nextIndex,]  
+    } else if (abs(lastLinePartingPlotInOrigData - nextPlotInOrigData) <=3 && lastLineParting$顶分型!=nextParting$顶分型) {
+      nextIndex <- nextIndex+1
+      nextParting <- partingDF[nextIndex,]      
+    } else if (abs(lastLinePartingPlotInOrigData - nextPlotInOrigData) <=3 && lastLineParting$顶分型==nextParting$顶分型) {
+      if (lastLineParting$顶分型&&lastLineParting$最高<nextParting$最高) {
+        linePartingDF <- rbind(linePartingDF,nextParting)
+        
+        lastLinePartingIndex <- nextIndex
+        lastLineParting <- partingDF[lastLinePartingIndex,]
+        nextIndex <- nextIndex+1
+        nextParting <- partingDF[nextIndex,]        
+      } else if (!lastLineParting$顶分型&&lastLineParting$最低>nextParting$最低) {
+        linePartingDF <- rbind(linePartingDF,nextParting)
+        
+        lastLinePartingIndex <- nextIndex
+        lastLineParting <- partingDF[lastLinePartingIndex,]
+        nextIndex <- nextIndex+1
+        nextParting <- partingDF[nextIndex,]         
+      } else {
+        nextIndex <- nextIndex+1
+        nextParting <- partingDF[nextIndex,] 
+      }
+    } else {
+      nextIndex <- nextIndex+1
+      nextParting <- partingDF[nextIndex,] 
     }
-    
-    firstIndex <- secondIndex
-    first <- partingDF[firstIndex,]
-    secondIndex <- secondIndex + 1
-    second <- partingDF[secondIndex,]
   }
   
   return(linePartingDF)
 }
+
+
+removeUnexpectedCandidate <- function(candidates,origData) {
+  for(i in 1:nrow(candidates)) {
+    candidate <- candidates[i,]
+    isTopParting <- candidate$顶分型
+    candDate <- candidate$日期
+    
+    
+    if(isTopParting) {
+      highDateInds <- which(origData$日期 == candDate)
+      leftHightDateInds <- highDateInds - 1
+      rightHightDateInds <- highDateInds + 1
+           
+      if (!(origData[leftHightDateInds,]$最低 < candidate$最低 
+          && origData[rightHightDateInds,]$最低 < candidate$最低)) {
+        candidates[i,2:ncol(candidate)] <- NA
+      }      
+    } else {
+      lowDateInds <- which(origData$日期 == candDate)
+      leftLowDateInds <- lowDateInds - 1
+      rightLowDateInds <- lowDateInds + 1
+      
+      if (!(origData[leftLowDateInds,]$最高 > candidate$最高 
+          && origData[rightLowDateInds,]$最高 > candidate$最高)) {
+        candidates[i,2:ncol(candidate)] <- NA
+      }      
+    }    
+  }
+  candidates <- na.omit(candidates)
+  return(candidates)
+}
+
 
 caculateLine <- function(id,startDate,endDate) {  
   path <- getwd()
@@ -661,13 +766,16 @@ caculateLine <- function(id,startDate,endDate) {
   flog.debug(paste("get file path",fileName))
   data <- readRXSJFile(fileName)
   
-  firstPDf <- findParting(data,startDate,endDate)
-  combinedFile <- processInclusion(firstPDf,data,startDate,endDate)  
-  secondPDF <- findParting(combinedFile,startDate,endDate)
+  firstCandidate <- findParting(data,startDate,endDate)
+  #parting <- elimSameParting(firstPDf)
+  combinedOrigData <- processInclusion(firstCandidate,data,startDate,endDate)
   
+  secondPDF <- findParting(combinedOrigData,startDate,endDate)
+  secondPDF <- removeUnexpectedCandidate(secondPDF,combinedOrigData)
   parting <- elimSameParting(secondPDF)
   
-  lineParting <- caculatePartingLinePot(parting,combinedFile)
+  lineParting <- caculatePartingLinePot(parting,combinedOrigData)
+  lineParting <- elimSameParting(lineParting)
 
   return(lineParting)
 }
