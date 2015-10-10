@@ -760,7 +760,7 @@ removeUnexpectedCandidate <- function(candidates,origData) {
 }
 
 
-caculateLine <- function(id,startDate,endDate) {  
+caculateLinePot <- function(id,startDate,endDate) {  
   path <- getwd()
   fileName <- paste(path,"//rxsj//",id,".txt",sep="")
   flog.debug(paste("get file path",fileName))
@@ -780,7 +780,32 @@ caculateLine <- function(id,startDate,endDate) {
   return(lineParting)
 }
 
-
+#将分笔的点结构转换成笔的表示形势
+transformLinePot2LineStructure <- function(caculatedLinePot) {
+  lineStructure <- data.frame(
+    开始日期 = as.Date(character("0")),
+    结束日期 = as.Date(character("0")),
+    最高 = numeric(0),
+    最低 = numeric(0),
+    向上 = logical())
+  j <- 1
+  for(i in 2:nrow(caculatedLinePot)) {
+    first <- caculatedLinePot[i-1,]
+    second <- caculatedLinePot[i,]
+    
+    if(first$顶分型 && !second$顶分型) {
+      lineStructure[j,] <- c(first$日期,second$日期,first$最高,second$最低,TRUE)
+    } else if (!first$顶分型 && second$顶分型) {
+      lineStructure[j,] <- c(first$日期,second$日期,second$最高,first$最低,FALSE)
+    } else {
+      flog.error(paste("the line pot is error"))
+      return(NULL)
+    }
+    j <- j + 1
+    i <- i + 1
+  }
+  return(lineStructure)
+}
 
 
 
