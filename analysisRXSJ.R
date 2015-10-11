@@ -6,7 +6,8 @@ library(plyr)
 library(logging)
 library(futile.logger)
 library(base)
-flog.threshold(DEBUG) 
+library(plyr)
+flog.threshold(WARN) 
 
 #file <- readRXSJFile("C:\\xtang\\workspace\\R\\stockAnalysis\\rxsj\\000001.txt")
 #partingDataDF[order(as.Date(partingDataDF$日期,format="%d/%m/%Y")),]
@@ -760,11 +761,14 @@ removeUnexpectedCandidate <- function(candidates,origData) {
 }
 
 
-caculateLine <- function(id,startDate,endDate) {  
+caculateLineStructure <- function(id,startDate,endDate) {  
   path <- getwd()
   fileName <- paste(path,"//rxsj//",id,".txt",sep="")
   flog.debug(paste("get file path",fileName))
   data <- readRXSJFile(fileName)
+  
+  startDateIndex <- which(data$日期==startDate)
+  startData <- data[startDateIndex,]
   
   firstCandidate <- findParting(data,startDate,endDate)
   #parting <- elimSameParting(firstPDf)
@@ -775,10 +779,82 @@ caculateLine <- function(id,startDate,endDate) {
   parting <- elimSameParting(secondPDF)
   
   lineParting <- caculatePartingLinePot(parting,combinedOrigData)
-  lineParting <- elimSameParting(lineParting)
-
-  return(lineParting)
+  linePot <- elimSameParting(lineParting)
+  
+  lineStruct <- transformLinePot2LineStructure(linePot,startData)
+  
+  return(lineStruct)
 }
+
+#将分笔的点结构转换成笔的表示形势
+transformLinePot2LineStructure <- function(caculatedLinePot,startRow) {
+  lineStructure <- data.frame(
+    日期 = as.Date(character("0")),
+    最高 = numeric(0),
+    最低 = numeric(0),
+    向上 = logical())
+
+  j <- 1
+  for(i in 2:nrow(caculatedLinePot)) {
+    first <- caculatedLinePot[i-1,]
+    second <- caculatedLinePot[i,]
+    date <- first$日期
+    
+    if(first$顶分型 && !second$顶分型) {
+      if(j == 1) {
+        lineStructure <- rbind(lineStructure,data.frame(
+          日期=startRow$日期,最高=startRow$最高,最低=startRow$最低,向上=TRUE))        
+      }
+      lineStructure <- rbind(lineStructure,data.frame(
+        日期=date,最高=first$最高,最低=second$最低,向上=FALSE))
+    } else if (!first$顶分型 && second$顶分型) {
+      if(j == 1) {
+        lineStructure <- rbind(lineStructure,data.frame(
+          日期=startRow$日期,最高=startRow$最高,最低=startRow$最低,向上=FALSE))        
+      }      
+      lineStructure <- rbind(lineStructure,data.frame(
+        日期=date,最高=second$最高,最低=first$最低,向上=TRUE))
+    } else {
+      flog.error(paste("the line pot is error"))
+      return(NULL)
+    }
+    j <- j + 1
+    i <- i + 1
+  }
+  return(lineStructure)
+}
+
+#将笔的结构“伪装”成交易数据
+fakeLineStruce2Kline <- function(lineStructure) {
+  lineStructure <- addOneColToDF(lineStructure,"日期",0,"开盘")
+  lineStructure <- addOneColToDF(lineStructure,"最低",0,"收盘")
+  lineStructure <- addOneColToDF(lineStructure,"收盘",0,"成交量")
+  lineStructure <- addOneColToDF(lineStructure,"收盘",0,"成交额")
+  
+  applyFun <- function(x) {
+    print(x$日期)
+    if(x$向上) {
+      x$开盘 <- x$最低
+      x$收盘 <- x$最高
+    } else {
+      x$开盘 <- x$最高
+      x$收盘 <- x$最低
+    }
+    print(x)
+  }
+  
+  lineStructure <- adply(lineStructure,1, applyFun)
+  lineStructure <- lineStructure[,-which(names(lineStructure)=="向上")]
+  return(lineStructure)
+}
+
+
+getCharacteristicSequence <- function(lineStructure) {
+    
+  
+}
+
+
 
 
 
