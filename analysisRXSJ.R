@@ -6,8 +6,7 @@ library(plyr)
 library(logging)
 library(futile.logger)
 library(base)
-library(plyr)
-flog.threshold(DEBUG) 
+flog.threshold(INFO) 
 
 #file <- readRXSJFile("C:\\xtang\\workspace\\R\\stockAnalysis\\rxsj\\000001.txt")
 #partingDataDF[order(as.Date(partingDataDF$日期,format="%d/%m/%Y")),]
