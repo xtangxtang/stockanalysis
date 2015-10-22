@@ -7,7 +7,7 @@ library(logging)
 library(futile.logger)
 library(base)
 library(plyr)
-flog.threshold(WARN) 
+flog.threshold(DEBUG) 
 
 #file <- readRXSJFile("C:\\xtang\\workspace\\R\\stockAnalysis\\rxsj\\000001.txt")
 #partingDataDF[order(as.Date(partingDataDF$日期,format="%d/%m/%Y")),]
@@ -36,6 +36,14 @@ getAllRXSJFiles <- function() {
 calculateTopParting <- function(origData,startDate,endDate) {
   flog.debug("--------------------------------------------------------------------")
   flog.debug(paste("calculate date between",startDate,"and",endDate))
+  
+  startDateInds <- shiftDateToRightIfNA(origData,startDate)
+  endDateInds <- shiftDateToLeftIfNA(origData,endDate)
+  startDate <- origData[startDateInds,]$日期
+  endDate <- origData[endDateInds,]$日期
+  
+  flog.debug(paste("after shift,calculate date between",
+                   startDate,"and",endDate))
   
   partingDataDF <- data.frame(
     日期 = as.Date(character("0")),
@@ -97,9 +105,11 @@ calculateTopParting <- function(origData,startDate,endDate) {
   flog.debug(paste("length subdata:",nrow(subData)))
   #get high price in the duration
   highestPrice <- max(subData$最高,na.rm = TRUE)
+  flog.debug(paste("highestPrice:",highestPrice))
   #subset according to the high price
-  highestData <- subset(subData,subData$最高==highestPrice)
-  highDate <- highestData[1,1]
+  highestDataInds <- which(subData$最高==highestPrice)
+  print(subData[highestDataInds,])
+  highestData <- subData[highestDataInds,]
 
   # if the highest price reaches most left or most right, it is not the parting
   highDate <- as.Date(highestData[1,1])
@@ -121,17 +131,6 @@ calculateTopParting <- function(origData,startDate,endDate) {
   #check if the highest price date is already record
   inds <- which(partingDataDF$日期==highDate)
   if(length(inds) == 0) {
-    #partingDataDF <- c(partingDataDF, highDate)
-    #assign("partingDataDF", rbind(partingDataDF,highestData), envir = .GlobalEnv)
-    
-#     highDateInds <- which(subData$日期 == highDate)
-#     leftHightDateInds <- highDateInds - 1
-#     rightHightDateInds <- highDateInds + 1
-#     
-# #     if (subData[leftHightDateInds,]$最低 < highestData$最低 
-# #         && subData[rightHightDateInds,]$最低 < highestData$最低) {
-# #      
-# #     }
     partingDataDF <- rbind(partingDataDF,highestData)
     partingDataDF <- partingDataDF[order(as.Date(partingDataDF$日期,format="%d/%m/%Y")),]
     flog.debug(paste("partingDataDF$日期",partingDataDF[1,1]))
@@ -141,16 +140,17 @@ calculateTopParting <- function(origData,startDate,endDate) {
     return(NULL)
   }
 
-#   while(!is.null(calculateTopParting(id,subData,sDate,highDate-1))) {
-#     
-#   }
   newDf <- calculateTopParting(subData,sDate,highDate-1)
-  partingDataDF <- rbind(partingDataDF,newDf)
-  partingDataDF <- partingDataDF[order(as.Date(partingDataDF$日期,format="%d/%m/%Y")),]
+  if (!is.null(newDf) && nrow(newDf) != 0) {
+    partingDataDF <- rbind(partingDataDF,newDf)
+    partingDataDF <- partingDataDF[order(as.Date(partingDataDF$日期,format="%d/%m/%Y")),]    
+  }
 
   newDf <- calculateTopParting(subData,highDate+1,eDate)
-  partingDataDF <- rbind(partingDataDF,newDf)
-  partingDataDF <- partingDataDF[order(as.Date(partingDataDF$日期,format="%d/%m/%Y")),]  
+  if(!is.null(newDf) && nrow(newDf) != 0) {
+    partingDataDF <- rbind(partingDataDF,newDf)
+    partingDataDF <- partingDataDF[order(as.Date(partingDataDF$日期,format="%d/%m/%Y")),]      
+  }
 
   return(partingDataDF)
 }
@@ -159,6 +159,14 @@ calculateTopParting <- function(origData,startDate,endDate) {
 calculateBottomParting <- function(origData,startDate,endDate) {
   flog.debug("--------------------------------------------------------------------")
   flog.debug(paste("calculate bottom parting date between",startDate,"and",endDate))
+  
+  startDateInds <- shiftDateToRightIfNA(origData,startDate)
+  endDateInds <- shiftDateToLeftIfNA(origData,endDate)
+  startDate <- origData[startDateInds,]$日期
+  endDate <- origData[endDateInds,]$日期
+  
+  flog.debug(paste("after shift,calculate date between",
+                   startDate,"and",endDate))  
   
   partingDataDF <- data.frame(
     日期 = as.Date(character("0")),
@@ -242,17 +250,6 @@ calculateBottomParting <- function(origData,startDate,endDate) {
   #check if the lowest price date is already record
   inds <- which(partingDataDF$日期==lowDate)
   if(length(inds) == 0) {
-    #partingDataDF <- c(partingDataDF, lowDate)
-    #assign("partingDataDF", rbind(partingDataDF,lowestData), envir = .GlobalEnv)
-    
-#     lowDateInds <- which(subData$日期 == lowDate)
-#     leftLowDateInds <- lowDateInds - 1
-#     rightLowDateInds <- lowDateInds + 1
-#     
-# #     if (subData[leftLowDateInds,]$最高 > lowestData$最高 
-# #         && subData[rightLowDateInds,]$最高 > lowestData$最高) {
-# #       
-# #     }
     partingDataDF <- rbind(partingDataDF,lowestData)
     partingDataDF <- partingDataDF[order(as.Date(partingDataDF$日期,format="%d/%m/%Y")),]
     flog.debug(paste("partingDataDF$日期",partingDataDF$日期))
@@ -263,20 +260,21 @@ calculateBottomParting <- function(origData,startDate,endDate) {
     return(NULL)
   }
   
-#   while(!is.null(calculateBottomParting(id,subData,sDate,lowDate-1))) {
-#     
-#   }
-  newdf <- calculateBottomParting(subData,sDate,lowDate-1)
-  partingDataDF <- rbind(partingDataDF,newdf)
-  partingDataDF <- partingDataDF[order(as.Date(partingDataDF$日期,format="%d/%m/%Y")),]    
-  
-#   while(!is.null(calculateBottomParting(id,subData,lowDate+1,eDate))) {
-#     
-#   }
-#   
-  newdf <- calculateBottomParting(subData,lowDate+1,eDate)
-  partingDataDF <- rbind(partingDataDF,newdf)
-  partingDataDF <- partingDataDF[order(as.Date(partingDataDF$日期,format="%d/%m/%Y")),]
+  newDf <- calculateBottomParting(subData,sDate,lowDate-1)
+  print("-------------2 bottom newDf")
+  print(newDf)
+  if(!is.null(newDf) && nrow(newDf) != 0) {
+    partingDataDF <- rbind(partingDataDF,newDf)
+    partingDataDF <- partingDataDF[order(as.Date(partingDataDF$日期,format="%d/%m/%Y")),]        
+  }
+
+  newDf <- calculateBottomParting(subData,lowDate+1,eDate)
+  print("-------------2.1 bottom newDf")
+  print(newDf)  
+  if (!is.null(newDf) && nrow(newDf) != 0) {
+    partingDataDF <- rbind(partingDataDF,newDf)
+    partingDataDF <- partingDataDF[order(as.Date(partingDataDF$日期,format="%d/%m/%Y")),]    
+  }
 
   return(partingDataDF)
 }
@@ -393,17 +391,40 @@ validateBottomParting <- function(totalDataDF,bottomPartingDF) {
   return(TRUE)
 }
 
-findParting <- function(df,startDate=as.Date(character(0)),endDate=as.Date(character(0))) {
-  topParting <- calculateTopParting(df,startDate,endDate)
-  topParting <- addOneColToDF(topParting,"收盘",c(TRUE),"顶分型")
-#   print(topParting)
+findParting <- function(df,startDate=NULL,endDate=NULL) {
+  if(is.null(startDate)) {
+    startDate <- df[1,]$日期
+  }
   
+  if(is.null(endDate)) {
+    endDate <- df[nrow(df),]$日期
+  }
+  
+  topParting <- calculateTopParting(df,startDate,endDate)
+#   print("---------- top parting--------------")
+#   print(topParting)
+  if (!is.null(topParting)) {
+    topParting <- addOneColToDF(topParting,"收盘",c(TRUE),"顶分型")  
+  }
+
   bottomParting <- calculateBottomParting(df,startDate,endDate)
-  bottomParting <- addOneColToDF(bottomParting,"收盘",c(FALSE),"顶分型")
+  if(!is.null(bottomParting)) {
+    bottomParting <- addOneColToDF(bottomParting,"收盘",c(FALSE),"顶分型")  
+  }
+  
+#   print("----------bottomParting -------------")
 #   print(bottomParting)
+#   
+#   print("--------------df-----------------------")
+#   print(df)
   
   partingDataDF <- rbind(topParting,bottomParting)
-  partingDataDF <- partingDataDF[order(as.Date(partingDataDF$日期,format="%d/%m/%Y")),]
+#   print("----------partingDataDF -------------")
+#   print(partingDataDF)  
+  if(!is.null(partingDataDF)) {
+    partingDataDF <- partingDataDF[order(as.Date(partingDataDF$日期,format="%d/%m/%Y")),]  
+  }
+  
   return(partingDataDF)
 }
 
@@ -730,6 +751,10 @@ caculatePartingLinePot <- function(partingDF,combinedData) {
 
 
 removeUnexpectedCandidate <- function(candidates,origData) {
+  if(nrow(candidates) == 1) {
+    return(na.omit(candidates))
+  }
+  
   for(i in 1:nrow(candidates)) {
     candidate <- candidates[i,]
     isTopParting <- candidate$顶分型
@@ -760,21 +785,43 @@ removeUnexpectedCandidate <- function(candidates,origData) {
   return(candidates)
 }
 
-
-caculateLineStructure <- function(id,startDate,endDate) {  
+caculateLineStructure <- function(id,startDate=NULL,endDate=NULL) {  
   path <- getwd()
   fileName <- paste(path,"//rxsj//",id,".txt",sep="")
   flog.debug(paste("get file path",fileName))
   data <- readRXSJFile(fileName)
   
+  if(is.null(startDate)) {
+    startDate <- data[1,]$日期
+  }
+  
+  if(is.null(endDate)) {
+    end <- data[nrow(data),]$日期
+  }
+  
+  data <- subset(data,data$日期 >= startDate & data$日期 <= endDate)
+  
   startDateIndex <- which(data$日期==startDate)
   startData <- data[startDateIndex,]
   
-  firstCandidate <- findParting(data,startDate,endDate)
-  #parting <- elimSameParting(firstPDf)
-  combinedOrigData <- processInclusion(firstCandidate,data,startDate,endDate)
+  combinedOrigData <- concludeInclusion(data)
   
   secondPDF <- findParting(combinedOrigData,startDate,endDate)
+  if(is.null(secondPDF)) {
+    flog.warn(paste("the firstCandidate is null,maybe there is no parting from",startDate,"to",endDate,"please check the following data"))
+    print(data)
+    return(NULL)
+  }
+  #parting <- elimSameParting(firstPDf)
+  #combinedOrigData <- processInclusion(firstCandidate,data,startDate,endDate)
+  
+  
+#   secondPDF <- findParting(combinedOrigData,startDate,endDate)
+#   if(is.null(secondPDF)) {
+#     flog.warn(paste("the secondPDF is null,maybe after combined, there is no parting from",startDate,"to",endDate,"please check the following combined data"))
+#     print(combinedOrigData)
+#     return(NULL)
+#   }
   secondPDF <- removeUnexpectedCandidate(secondPDF,combinedOrigData)
   parting <- elimSameParting(secondPDF)
   
@@ -785,6 +832,52 @@ caculateLineStructure <- function(id,startDate,endDate) {
   
   return(lineStruct)
 }
+
+
+# caculateLineStructure <- function(id,startDate=NULL,endDate=NULL) {  
+#   path <- getwd()
+#   fileName <- paste(path,"//rxsj//",id,".txt",sep="")
+#   flog.debug(paste("get file path",fileName))
+#   data <- readRXSJFile(fileName)
+#   
+#   if(is.null(startDate)) {
+#     startDate <- data[1,]$日期
+#   }
+#   
+#   if(is.null(endDate)) {
+#     end <- data[nrow(data),]$日期
+#   }
+#   
+#   startDateIndex <- which(data$日期==startDate)
+#   startData <- data[startDateIndex,]
+#   
+#   firstCandidate <- findParting(data,startDate,endDate)
+#   if(is.null(firstCandidate)) {
+#     flog.warn(paste("the firstCandidate is null,maybe there is no parting from",startDate,"to",endDate,"please check the following data"))
+#     print(data)
+#     return(NULL)
+#   }
+#   #parting <- elimSameParting(firstPDf)
+#   #combinedOrigData <- processInclusion(firstCandidate,data,startDate,endDate)
+#   combinedOrigData <- concludeInclusion(data)
+#   
+#   secondPDF <- findParting(combinedOrigData,startDate,endDate)
+#   if(is.null(secondPDF)) {
+#     flog.warn(paste("the secondPDF is null,maybe after combined, there is no parting from",startDate,"to",endDate,"please check the following combined data"))
+#     print(combinedOrigData)
+#     return(NULL)
+#   }
+#   secondPDF <- removeUnexpectedCandidate(secondPDF,combinedOrigData)
+#   parting <- elimSameParting(secondPDF)
+#   
+#   lineParting <- caculatePartingLinePot(parting,combinedOrigData)
+#   linePot <- elimSameParting(lineParting)
+#   
+#   lineStruct <- transformLinePot2LineStructure(linePot,startData)
+#   
+#   return(lineStruct)
+# }
+
 
 #将分笔的点结构转换成笔的表示形势
 transformLinePot2LineStructure <- function(caculatedLinePot,startRow) {
@@ -824,6 +917,8 @@ transformLinePot2LineStructure <- function(caculatedLinePot,startRow) {
   return(lineStructure)
 }
 
+
+
 #将笔的结构“伪装”成交易数据
 fakeLineStruce2Kline <- function(lineStructure) {
   lineStructure <- addOneColToDF(lineStructure,"日期",0,"开盘")
@@ -848,30 +943,277 @@ fakeLineStruce2Kline <- function(lineStructure) {
   return(lineStructure)
 }
 
+concludeUpCharactSequence <- function(lineStructure) {
+  return(adply(lineStruct,1, function(x) if(!x$向上) return(x)))
+}
 
-getCharacteristicSequence <- function(lineStructure) {
-    
+concludeDownCharactSequence <- function(lineStructure) {
+  return(adply(lineStruct,1, function(x) if(x$向上) return(x)))
+}
+
+#lineStruct <- caculateLineStructure("000001","2013-06-25","2015-09-22")
+concludeSegment <- function(lineStruct) {
   
+  segment <- data.frame(
+    日期 = as.Date(character("0")),
+    开盘 = numeric(0),
+    最高 = numeric(0),
+    最低 = numeric(0),
+    收盘 = numeric(0),
+    顶分型 = logical(),
+    isUpSeq = logical(),
+    成交额 = numeric(0),
+    成交量 = numeric(0))
+  
+  #segment <- rbind(segment,lineStruct[1,])
+  
+  upSeq <- concludeUpCharactSequence(lineStruct)
+  starndarUpSeq <- concludeInclusion(upSeq)
+  fakeUpKLine <- fakeLineStruce2Kline(starndarUpSeq)
+  upSeqParting <- findParting(fakeUpKLine)
+    
+  downSeq <- concludeDownCharactSequence(lineStruct)
+  starndarDownSeq <- concludeInclusion(downSeq)
+  fakeDownKLine <- fakeLineStruce2Kline(starndarDownSeq)
+  downSeqParting <- findParting(fakeDownKLine)
+  
+#   stardSeq <- rbind(starndarUpSeq,starndarDownSeq)
+#   stardSeq <- stardSeq[order(as.Date(stardSeq$日期,format="%d/%m/%Y")),]  
+#   fakeStardSeqKLine <- fakeLineStruce2Kline(stardSeq)
+#   drawKline(fakeStardSeqKLine)  
+  print("####starndarUpSeq:")
+  print(starndarUpSeq)  
+  print("####starndarDownSeq:")
+  print(starndarDownSeq)  
+  print("####upSeqParting:")
+  print(upSeqParting)
+  print("####downSeqParting:")
+  print(downSeqParting)
+  
+
+  
+  upSeqParting<-addOneColToDF(upSeqParting,"顶分型",TRUE,"isUpSeq")
+  downSeqParting<-addOneColToDF(downSeqParting,"顶分型",FALSE,"isUpSeq")
+
+  seqParting <- rbind(upSeqParting,downSeqParting)
+  seqParting <- seqParting[order(as.Date(seqParting$日期,format="%d/%m/%Y")),]
+  print(seqParting)
+
+  validateParting <- function(parting,inds) {    
+    if(length(inds) == 0) {
+      flog.error(paste("can not find",parting[i,]$日期,"in starndarUpSeq"))
+      return(NULL)
+    }
+    
+    left <- parting[inds-1,]
+    mid <- parting[inds,]
+    right <- parting[inds+1,]
+    
+    if(is.null(left) || is.na(left) || nrow(left) == 0) {
+      flog.error(paste("parting",parting[inds,]$日期,"left data is empty"))
+      return(FALSE)
+    }
+    
+    if(is.null(right) || is.na(right) || nrow(right) == 0) {
+      flog.error(paste("parting",parting[inds,]$日期,"right data is empty"))
+      return(FALSE)
+    }
+    
+    return(TRUE)
+  }
+
+  i <- 1
+  #isUp <- lineStruct[i,]$向上
+  while(i <= nrow(seqParting)) {
+    if(seqParting[i,]$isUpSeq & seqParting[i,]$顶分型 ) { 
+      #是向上开始的一笔的特征序列，并且是顶分型
+      inds <- which(starndarUpSeq$日期 == seqParting[i,]$日期)      
+      if(!validateParting(starndarUpSeq,inds)) {
+        return(NULL)
+      }
+      
+      left <- starndarUpSeq[inds-1,]
+      mid <- starndarUpSeq[inds,]
+      right <- starndarUpSeq[inds+1,]
+      
+      if(left$最高 >= mid$最低) {
+        #有重合区域
+        segment <- rbind(segment,seqParting[i,])
+        flog.info(paste("find up segment at date",seqParting[i,]$日期))
+        i <- i + 1
+      } else {
+        #有跳空缺口
+        j <- i + 1
+        while(j <= nrow(seqParting)) {
+          if (seqParting[j,]$isUpSeq & seqParting[j,]$顶分型) {
+            #有一个新的向上序列顶分型,以该顶分型为起点，重新找向下特征序列的底分型
+            break            
+          } else if(!seqParting[j,]$isUpSeq & !seqParting[j,]$顶分型) {
+            #找到向下特征序列的底分型
+            segment <- rbind(segment,seqParting[i,])
+            flog.info(paste("find up segment at date",seqParting[i,]$日期))
+            break            
+          }
+          j <- j + 1
+        }
+        i <- j
+      }
+    } #end if (seqParting[i,]$isUpSeq & seqParting[i,]$顶分型 )  
+    else if (!seqParting[i,]$isUpSeq & !seqParting[i,]$顶分型 ) {
+      inds <- which(starndarDownSeq$日期 == seqParting[i,]$日期)      
+      if(!validateParting(starndarDownSeq,inds)) {
+        return(NULL)
+      }
+      
+      left <- starndarDownSeq[inds-1,]
+      mid <- starndarDownSeq[inds,]
+      right <- starndarDownSeq[inds+1,]
+      
+      if(left$最低 <= mid$最高) {
+        #有重合区域
+        segment <- rbind(segment,seqParting[i,])
+        flog.info(paste("find down segment at date",seqParting[i,]$日期))
+        i <- i + 1
+      } else {
+        #有跳空缺口
+        j <- i + 1
+        while(j <= nrow(seqParting)) {
+          if (!seqParting[j,]$isUpSeq & !seqParting[j,]$顶分型 ) {
+            #有一个新的向下序列底分型,以该顶分型为起点，重新找向上特征序列的顶分型
+            break            
+          } else if(seqParting[j,]$isUpSeq & seqParting[j,]$顶分型) {
+            #找到向上特征序列的顶分型
+            segment <- rbind(segment,seqParting[i,])
+            flog.info(paste("find down segment at date",seqParting[i,]$日期))
+            break            
+          }
+          j <- j + 1
+        }
+        i <- j
+      }
+    } # end !seqParting[i,]$isUpSeq & !seqParting[i,]$顶分型 
+    i <- i + 1
+  }
+  return(segment)
+}
+
+
+concludeInclusion <- function(data) {
+  #flog.debug(data)
+  if(is.null(data) || nrow(data) == 0) {
+    flog.info("data is null or empty")
+    return(NULL)
+  }
+  
+  flog.debug(paste("nrow data",nrow(data)))
+  
+  if(nrow(data) <= 2) {
+    return(data)
+  }
+  
+  i <- 1
+  j <- i + 1
+  
+  while(j <= nrow(data)) { #skip all the first inclusion relationship, i always point to the high length Kline
+    first <- data[i,]
+    second <- data[j,]
+    if(first$最高>=second$最高 & first$最低 <= second$最低) {
+      data[j,2:ncol(data)] <- NA
+      j <- j + 1
+    } else if (first$最高<second$最高 & first$最低 > second$最低) {
+      data[i,2:ncol(data)] <- NA
+      i <- j
+      j <- j + 1
+    } else {
+      break
+    }
+  }
+  
+  flog.debug(paste("after skip all the first inclusion relationship","i",i,"j",j))
+  
+  if(j > nrow(data)) {
+    flog.warn(paste("all the data between",data[1,]$日期,"and",data[nrow(data),]$日期,"is the inclusion relationship"))
+    return(NULL)
+  }
+  
+  p <- i
+  i <- j
+  j <- j + 1
+  while(j <= nrow(data)) {
+    flog.debug(paste("i",i,"j",j))
+    left <- data[p,]
+    mid <- data[i,]
+    right <- data[j,]
+    print(left)
+    print(mid)
+    print(right)
+    
+    if((left$最高>=mid$最高 & left$最低 <= mid$最低) || (left$最高<mid$最高 & left$最低 > mid$最低)) {
+      flog.error(paste("the left one",left$日期,"should not have inclusion relationship with mid",mid$日期))
+      return(NULL)
+    }
+    
+    if(left$最低 >= mid$最低) {
+      # like                 |          |   |
+      #  |         |         | |        | | |
+      #  | | | or  | | | or    |  |  or   |
+      #    |           |          |
+      #
+      if (mid$最高>=right$最高 & mid$最低 <= right$最低) { # mid include right
+        data[i,]$最高 <- right$最高
+        flog.debug(paste("delete right",right$日期,"data"))
+        data[j,2:ncol(data)] <- NA
+        j <- j + 1
+      } else if (mid$最高<right$最高 & mid$最低 > right$最低) { # right include mid
+        data[j,]$最高 <- mid$最高
+        flog.debug(paste("delete mid",mid$日期,"data"))
+        data[i,2:ncol(data)] <- NA
+        i <- j
+        j <- j + 1
+      } else {
+        p <- i
+        i <- j
+        j <- j + 1
+      }
+    } else { #if (left$最低 < mid$最低) 
+      # like
+      #                          |
+      #    | | or   | | or    |  |  or    |
+      #  | |      |   |    |  |        |  |  |
+      #  |        |        |           |     |
+      #
+      if (mid$最高>=right$最高 & mid$最低 <= right$最低) { # mid include right
+        data[i,]$最低 <- right$最低
+        flog.debug(paste("delete mid",right$日期,"data"))
+        data[j,2:ncol(data)] <- NA
+        j <- j + 1
+      } else if (mid$最高<right$最高 & mid$最低 > right$最低) { # right include mid
+        data[j,]$最低 <- mid$最低
+        flog.debug(paste("delete right",mid$日期,"data"))
+        data[i,2:ncol(data)] <- NA
+        i <- j
+        j <- j + 1
+      } else {
+        p <- i
+        i <- j
+        j <- j + 1
+      }      
+    }  
+  }
+
+  return(na.omit(data))
 }
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+drawKline <- function(data) {
+  data <- data[,-ncol(data)]
+  data$日期 <- as.Date(data$日期,format="%Y%m%d")
+  x <- xts(as.matrix(data[,2:ncol(data)]),data$日期)
+  colnames(x) <- c('Open','High','Low','Close','Volume')
+  #candleChart(x,TA=NULL)
+  chart_Series(x, type = "candlesticks" ) 
+}
 
 
 
