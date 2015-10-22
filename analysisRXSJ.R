@@ -785,7 +785,6 @@ removeUnexpectedCandidate <- function(candidates,origData) {
   return(candidates)
 }
 
-
 caculateLineStructure <- function(id,startDate=NULL,endDate=NULL) {  
   path <- getwd()
   fileName <- paste(path,"//rxsj//",id,".txt",sep="")
@@ -800,25 +799,29 @@ caculateLineStructure <- function(id,startDate=NULL,endDate=NULL) {
     end <- data[nrow(data),]$日期
   }
   
+  data <- subset(data,data$日期 >= startDate & data$日期 <= endDate)
+  
   startDateIndex <- which(data$日期==startDate)
   startData <- data[startDateIndex,]
   
-  firstCandidate <- findParting(data,startDate,endDate)
-  if(is.null(firstCandidate)) {
+  combinedOrigData <- concludeInclusion(data)
+  
+  secondPDF <- findParting(combinedOrigData,startDate,endDate)
+  if(is.null(secondPDF)) {
     flog.warn(paste("the firstCandidate is null,maybe there is no parting from",startDate,"to",endDate,"please check the following data"))
     print(data)
     return(NULL)
   }
   #parting <- elimSameParting(firstPDf)
   #combinedOrigData <- processInclusion(firstCandidate,data,startDate,endDate)
-  combinedOrigData <- concludeInclusion(data)
   
-  secondPDF <- findParting(combinedOrigData,startDate,endDate)
-  if(is.null(secondPDF)) {
-    flog.warn(paste("the secondPDF is null,maybe after combined, there is no parting from",startDate,"to",endDate,"please check the following combined data"))
-    print(combinedOrigData)
-    return(NULL)
-  }
+  
+#   secondPDF <- findParting(combinedOrigData,startDate,endDate)
+#   if(is.null(secondPDF)) {
+#     flog.warn(paste("the secondPDF is null,maybe after combined, there is no parting from",startDate,"to",endDate,"please check the following combined data"))
+#     print(combinedOrigData)
+#     return(NULL)
+#   }
   secondPDF <- removeUnexpectedCandidate(secondPDF,combinedOrigData)
   parting <- elimSameParting(secondPDF)
   
@@ -829,6 +832,51 @@ caculateLineStructure <- function(id,startDate=NULL,endDate=NULL) {
   
   return(lineStruct)
 }
+
+
+# caculateLineStructure <- function(id,startDate=NULL,endDate=NULL) {  
+#   path <- getwd()
+#   fileName <- paste(path,"//rxsj//",id,".txt",sep="")
+#   flog.debug(paste("get file path",fileName))
+#   data <- readRXSJFile(fileName)
+#   
+#   if(is.null(startDate)) {
+#     startDate <- data[1,]$日期
+#   }
+#   
+#   if(is.null(endDate)) {
+#     end <- data[nrow(data),]$日期
+#   }
+#   
+#   startDateIndex <- which(data$日期==startDate)
+#   startData <- data[startDateIndex,]
+#   
+#   firstCandidate <- findParting(data,startDate,endDate)
+#   if(is.null(firstCandidate)) {
+#     flog.warn(paste("the firstCandidate is null,maybe there is no parting from",startDate,"to",endDate,"please check the following data"))
+#     print(data)
+#     return(NULL)
+#   }
+#   #parting <- elimSameParting(firstPDf)
+#   #combinedOrigData <- processInclusion(firstCandidate,data,startDate,endDate)
+#   combinedOrigData <- concludeInclusion(data)
+#   
+#   secondPDF <- findParting(combinedOrigData,startDate,endDate)
+#   if(is.null(secondPDF)) {
+#     flog.warn(paste("the secondPDF is null,maybe after combined, there is no parting from",startDate,"to",endDate,"please check the following combined data"))
+#     print(combinedOrigData)
+#     return(NULL)
+#   }
+#   secondPDF <- removeUnexpectedCandidate(secondPDF,combinedOrigData)
+#   parting <- elimSameParting(secondPDF)
+#   
+#   lineParting <- caculatePartingLinePot(parting,combinedOrigData)
+#   linePot <- elimSameParting(lineParting)
+#   
+#   lineStruct <- transformLinePot2LineStructure(linePot,startData)
+#   
+#   return(lineStruct)
+# }
 
 
 #将分笔的点结构转换成笔的表示形势
@@ -896,11 +944,11 @@ fakeLineStruce2Kline <- function(lineStructure) {
 }
 
 concludeUpCharactSequence <- function(lineStructure) {
-  return(adply(lineStruct,1, function(x) if(x$向上) return(x)))
+  return(adply(lineStruct,1, function(x) if(!x$向上) return(x)))
 }
 
 concludeDownCharactSequence <- function(lineStructure) {
-  return(adply(lineStruct,1, function(x) if(!x$向上) return(x)))
+  return(adply(lineStruct,1, function(x) if(x$向上) return(x)))
 }
 
 #lineStruct <- caculateLineStructure("000001","2013-06-25","2015-09-22")
@@ -921,15 +969,11 @@ concludeSegment <- function(lineStruct) {
   
   upSeq <- concludeUpCharactSequence(lineStruct)
   starndarUpSeq <- concludeInclusion(upSeq)
-  print("####starndarUpSeq:")
-  print(starndarUpSeq)  
   fakeUpKLine <- fakeLineStruce2Kline(starndarUpSeq)
   upSeqParting <- findParting(fakeUpKLine)
     
   downSeq <- concludeDownCharactSequence(lineStruct)
   starndarDownSeq <- concludeInclusion(downSeq)
-  print("####starndarDownSeq:")
-  print(starndarDownSeq)    
   fakeDownKLine <- fakeLineStruce2Kline(starndarDownSeq)
   downSeqParting <- findParting(fakeDownKLine)
   
@@ -937,7 +981,10 @@ concludeSegment <- function(lineStruct) {
 #   stardSeq <- stardSeq[order(as.Date(stardSeq$日期,format="%d/%m/%Y")),]  
 #   fakeStardSeqKLine <- fakeLineStruce2Kline(stardSeq)
 #   drawKline(fakeStardSeqKLine)  
-  
+  print("####starndarUpSeq:")
+  print(starndarUpSeq)  
+  print("####starndarDownSeq:")
+  print(starndarDownSeq)  
   print("####upSeqParting:")
   print(upSeqParting)
   print("####downSeqParting:")
@@ -1052,7 +1099,7 @@ concludeSegment <- function(lineStruct) {
 
 
 concludeInclusion <- function(data) {
-  flog.debug(data)
+  #flog.debug(data)
   if(is.null(data) || nrow(data) == 0) {
     flog.info("data is null or empty")
     return(NULL)
@@ -1093,12 +1140,16 @@ concludeInclusion <- function(data) {
   i <- j
   j <- j + 1
   while(j <= nrow(data)) {
+    flog.debug(paste("i",i,"j",j))
     left <- data[p,]
     mid <- data[i,]
     right <- data[j,]
+    print(left)
+    print(mid)
+    print(right)
     
     if((left$最高>=mid$最高 & left$最低 <= mid$最低) || (left$最高<mid$最高 & left$最低 > mid$最低)) {
-      flog.error("the left one",left$日期,"should not have inclusion relationship with mid",mid$日期)
+      flog.error(paste("the left one",left$日期,"should not have inclusion relationship with mid",mid$日期))
       return(NULL)
     }
     
@@ -1109,13 +1160,13 @@ concludeInclusion <- function(data) {
       #    |           |          |
       #
       if (mid$最高>=right$最高 & mid$最低 <= right$最低) { # mid include right
-        mid$最高 <- right$最高
-        flog.debug(paste("delete",right$日期,"data"))
+        data[i,]$最高 <- right$最高
+        flog.debug(paste("delete right",right$日期,"data"))
         data[j,2:ncol(data)] <- NA
         j <- j + 1
       } else if (mid$最高<right$最高 & mid$最低 > right$最低) { # right include mid
-        right$最高 <- mid$最高
-        flog.debug(paste("delete",mid$日期,"data"))
+        data[j,]$最高 <- mid$最高
+        flog.debug(paste("delete mid",mid$日期,"data"))
         data[i,2:ncol(data)] <- NA
         i <- j
         j <- j + 1
@@ -1132,13 +1183,13 @@ concludeInclusion <- function(data) {
       #  |        |        |           |     |
       #
       if (mid$最高>=right$最高 & mid$最低 <= right$最低) { # mid include right
-        mid$最低 <- right$最低
-        flog.debug(paste("delete",right$日期,"data"))
+        data[i,]$最低 <- right$最低
+        flog.debug(paste("delete mid",right$日期,"data"))
         data[j,2:ncol(data)] <- NA
         j <- j + 1
       } else if (mid$最高<right$最高 & mid$最低 > right$最低) { # right include mid
-        right$最低 <- mid$最低
-        flog.debug(paste("delete",mid$日期,"data"))
+        data[j,]$最低 <- mid$最低
+        flog.debug(paste("delete right",mid$日期,"data"))
         data[i,2:ncol(data)] <- NA
         i <- j
         j <- j + 1
