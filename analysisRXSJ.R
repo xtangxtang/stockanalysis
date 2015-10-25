@@ -1203,6 +1203,64 @@ concludeInclusion <- function(data) {
   return(na.omit(data))
 }
 
+optimizeSegment <- function(segmentStruct) {
+  if(is.null(segmentStruct)) {
+    flog.error(paste("segmentStruct is null"))
+    return(NULL)
+  }
+  
+  i <- 1
+  while(i < nrow(segmentStruct)) {
+    isTopParting <- segmentStruct[i,]$顶分型
+    isUpSeq <- segmentStruct[i,]$isUpSeq
+    
+    if(isTopParting & isUpSeq) {
+      j <- i + 1
+      while(j < nrow(segmentStruct)) {
+        nextIsTopParting <- segmentStruct[j,]$顶分型
+        nextIsUpSeq <- segmentStruct[j,]$isUpSeq
+        if ((nextIsTopParting == isTopParting) & (isUpSeq == nextIsUpSeq)) {
+          if(segmentStruct[j,]$最高 > segmentStruct[i,]$最高) {
+            segmentStruct[i,2:ncol(segmentStruct)] <- NA
+            i <- j
+          } else {
+            segmentStruct[j,2:ncol(segmentStruct)] <- NA
+          }
+          j <- j + 1  
+          next
+        } else {
+          break
+        }
+      }
+      i <- j
+    } else if (!isTopParting & !isUpSeq) {
+      j <- i + 1
+      while(j < nrow(segmentStruct)) {
+        nextIsTopParting <- segmentStruct[j,]$顶分型
+        nextIsUpSeq <- segmentStruct[j,]$isUpSeq
+        if ((nextIsTopParting == isTopParting) & (isUpSeq == nextIsUpSeq)) {
+          if(segmentStruct[j,]$最低 < segmentStruct[i,]$最低) {
+            segmentStruct[i,2:ncol(segmentStruct)] <- NA
+            i <- j
+          } else {
+            segmentStruct[j,2:ncol(segmentStruct)] <- NA
+          }
+          j <- j + 1  
+          next
+        } else {
+          break
+        }
+      }
+      i <- j
+    } else {
+      flog.error(paste("can not process isTopParting",isTopParting,"isUpSeq",isUpSeq))
+      return(NULL)
+    }
+  }
+  segmentStruct <- na.omit(segmentStruct)
+  return(segmentStruct)
+}
+
 
 
 drawKline <- function(data) {
